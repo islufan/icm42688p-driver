@@ -1,32 +1,34 @@
-# ICM-42688-P 驱动
+# ICM-42688-P Driver
 
 [![ci](https://github.com/islufan/icm42688p-driver/actions/workflows/ci.yml/badge.svg)](https://github.com/islufan/icm42688p-driver/actions/workflows/ci.yml)
 
-面向嵌入式 C99 的 ICM-42688-P 六轴 IMU 驱动。驱动本体不依赖 STM32 HAL、ESP-IDF 或其他平台 SDK，总线和延时通过回调提供。
+**English** | [简体中文](README.zh-CN.md)
 
-## 特性
+A C99 driver for the ICM-42688-P 6-axis IMU, written for bare-metal embedded targets. The driver does not depend on STM32 HAL, ESP-IDF or any other platform SDK: the bus and the delay are injected as callbacks.
 
-- SPI 或 I2C 总线适配
-- 加速度计和陀螺仪量程、ODR 配置
-- 原始数据换算为 g、dps 和摄氏温度
-- 六轴 12 字节连续读取
-- 状态码错误处理
-- 不需要硬件的 mock 单元测试
+## Features
 
-## 项目结构
+- SPI or I2C bus adapter
+- Accel and gyro full-scale / ODR configuration
+- Raw data converted to g, dps and degrees Celsius
+- 12-byte burst read of all six axes
+- Status-code based error handling
+- Mock-bus unit tests that need no hardware
+
+## Layout
 
 ```text
-src/       平台无关驱动
-port/      STM32 HAL 适配层
-examples/  STM32G474 示例
-tests/     mock 单元测试
+src/       platform-independent driver
+port/      STM32 HAL adapter
+examples/  STM32G474 example
+tests/     mock-bus unit tests
 ```
 
-## 快速开始
+## Quick Start
 
-总线需要提供读、写和延时三个回调。SPI 读事务保持 CS 有效，先发送 `reg | 0x80`，再连续读取数据。SPI 写事务发送 `reg & 0x7F`，再连续写入数据。
+The bus needs three callbacks: read, write and delay. An SPI read keeps CS asserted, sends `reg | 0x80`, then reads the payload. An SPI write sends `reg & 0x7F`, then the payload.
 
-`delay_us` 用于软复位后的 1 ms 等待和传感器使能后的 200 μs 保护时间。陀螺仪使能后还需要等待约 45 ms 才能读取有效数据。
+`delay_us` covers the 1 ms wait after a soft reset and the 200 µs guard time after enabling the sensors. The gyroscope additionally needs about 45 ms before its data is valid.
 
 ```c
 static void delay_us(void *ctx, uint32_t us)
@@ -37,7 +39,7 @@ static void delay_us(void *ctx, uint32_t us)
 
 static int bus_read(void *ctx, uint8_t reg, uint8_t *buf, uint16_t len)
 {
-    /* SPI 示例。I2C 适配只需遵循相同的回调约定。 */
+    /* SPI example. An I2C adapter just follows the same callback contract. */
     (void)ctx;
     uint8_t address = (uint8_t)(reg | 0x80u);
     cs_low();
@@ -64,12 +66,12 @@ if (icm_init(&imu, bus_read, bus_write, delay_us, NULL) == ICM_OK) {
 
     icm_scaled_t data;
     if (icm_read_scaled(&imu, &data) == ICM_OK) {
-        /* data.accel_g[0..2]，data.gyro_dps[0..2] */
+        /* data.accel_g[0..2], data.gyro_dps[0..2] */
     }
 }
 ```
 
-初始化默认使用 ±16 g、±2000 dps、1 kHz 和低噪声模式。配置可以在初始化后调整：
+Initialization defaults to ±16 g, ±2000 dps, 1 kHz and low-noise mode. Settings can be changed afterwards:
 
 ```c
 icm_set_accel_fs(&imu, ICM_ACCEL_FS_4G);
@@ -77,50 +79,50 @@ icm_set_gyro_fs(&imu, ICM_GYRO_FS_500DPS);
 icm_set_odr(&imu, ICM_ODR_200HZ);
 ```
 
-STM32 HAL 适配层位于 `port/`，使用时将 `icm_hal_spi_bind()` 提供的总线实例作为 `ctx` 传入，并确保 STM32Cube 工程的 `main.h` 和 HAL 头文件在包含路径中。
+The STM32 HAL adapter lives in `port/`. Pass the bus instance filled in by `icm_hal_spi_bind()` as `ctx`, and make sure `main.h` and the HAL headers of your STM32Cube project are on the include path.
 
 ## API
 
-| 函数 | 作用 |
+| Function | Purpose |
 | :--- | :--- |
-| `icm_init()` | 复位、检查 WHO_AM_I、写入默认配置并使能传感器 |
-| `icm_soft_reset()` | 软复位并清除初始化状态 |
-| `icm_set_accel_fs()` | 设置加速度计量程 |
-| `icm_set_gyro_fs()` | 设置陀螺仪量程 |
-| `icm_set_odr()` | 同时设置加速度计和陀螺仪 ODR |
-| `icm_enable()` | 以低噪声模式使能两颗传感器 |
-| `icm_read_raw()` | 读取六轴原始码值 |
-| `icm_read_scaled()` | 读取并换算六轴数据 |
-| `icm_read_temperature()` | 读取芯片温度 |
-| `icm_data_ready()` | 查询数据就绪状态 |
-| `icm_read_reg()` / `icm_write_reg()` | 直接访问寄存器 |
-| `icm_set_bank()` | 切换寄存器 Bank，范围为 0~4 |
+| `icm_init()` | Reset, verify WHO_AM_I, apply defaults and enable the sensors |
+| `icm_soft_reset()` | Soft reset and clear the initialized state |
+| `icm_set_accel_fs()` | Set the accelerometer full scale |
+| `icm_set_gyro_fs()` | Set the gyroscope full scale |
+| `icm_set_odr()` | Set the ODR of both sensors |
+| `icm_enable()` | Enable both sensors in low-noise mode |
+| `icm_read_raw()` | Read the raw 6-axis counts |
+| `icm_read_scaled()` | Read and convert the 6-axis data |
+| `icm_read_temperature()` | Read the die temperature |
+| `icm_data_ready()` | Poll the data-ready flag |
+| `icm_read_reg()` / `icm_write_reg()` | Direct register access |
+| `icm_set_bank()` | Select a register bank, 0 to 4 |
 
-状态码包括 `ICM_OK`、`ICM_ERR_PARAM`、`ICM_ERR_BUS`、`ICM_ERR_ID` 和 `ICM_ERR_STATE`。
+Status codes: `ICM_OK`, `ICM_ERR_PARAM`, `ICM_ERR_BUS`, `ICM_ERR_ID`, `ICM_ERR_STATE`.
 
-## 配置
+## Configuration
 
-加速度计量程和灵敏度如下：
+Accelerometer full scale and sensitivity:
 
-| 枚举 | 量程 | 灵敏度 |
+| Enum | Range | Sensitivity |
 | :--- | :--- | :--- |
 | `ICM_ACCEL_FS_16G` | ±16 g | 2048 LSB/g |
 | `ICM_ACCEL_FS_8G` | ±8 g | 4096 LSB/g |
 | `ICM_ACCEL_FS_4G` | ±4 g | 8192 LSB/g |
 | `ICM_ACCEL_FS_2G` | ±2 g | 16384 LSB/g |
 
-陀螺仪量程和灵敏度如下：
+Gyroscope full scale and sensitivity:
 
-| 枚举 | 量程 | 灵敏度 |
+| Enum | Range | Sensitivity |
 | :--- | :--- | :--- |
 | `ICM_GYRO_FS_2000DPS` | ±2000 dps | 16.4 LSB/dps |
 | `ICM_GYRO_FS_1000DPS` | ±1000 dps | 32.8 LSB/dps |
 | `ICM_GYRO_FS_500DPS` | ±500 dps | 65.5 LSB/dps |
 | `ICM_GYRO_FS_250DPS` | ±250 dps | 131 LSB/dps |
 
-`icm_set_odr()` 同时配置两颗传感器，可用 ODR 如下：
+`icm_set_odr()` configures both sensors at once. Available ODR settings:
 
-| 枚举 | ODR | 寄存器值 |
+| Enum | ODR | Register value |
 | :--- | :--- | :--- |
 | `ICM_ODR_32KHZ` | 32 kHz | `0x01` |
 | `ICM_ODR_16KHZ` | 16 kHz | `0x02` |
@@ -135,9 +137,9 @@ STM32 HAL 适配层位于 `port/`，使用时将 `icm_hal_spi_bind()` 提供的�
 | `ICM_ODR_12_5HZ` | 12.5 Hz | `0x0B` |
 | `ICM_ODR_500HZ` | 500 Hz | `0x0F` |
 
-`0x0C`、`0x0D` 和 `0x0E` 是陀螺仪保留值，因此驱动会拒绝这些编码。加速度计在低功耗模式下支持更低的 ODR，但本接口要求两颗传感器使用同一 ODR。
+`0x0C`, `0x0D` and `0x0E` are reserved on the gyroscope, so the driver rejects them. The accelerometer supports lower rates in low-power mode, but this API requires a single ODR shared by both sensors.
 
-数据换算公式如下：
+Conversion formulas:
 
 ```text
 accel_g  = accel_raw / accel_lsb_per_g
@@ -145,7 +147,7 @@ gyro_dps = gyro_raw  / gyro_lsb_per_dps
 temp_c   = temp_raw  / 132.48 + 25
 ```
 
-## 构建和测试
+## Build and Test
 
 ```bash
 cmake -S . -B build -DICM_BUILD_TESTS=ON
@@ -153,19 +155,19 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-作为子目录集成时，测试默认关闭：
+When the library is added as a subdirectory, tests are off by default:
 
 ```cmake
-add_subdirectory(icm42688)
+add_subdirectory(icm42688p-driver)
 target_link_libraries(my_app PRIVATE icm42688)
 ```
 
-## 常见问题
+## Troubleshooting
 
-- `WHO_AM_I` 应读到 `0x47`。读不到时检查 CS、SPI Mode 0 或 Mode 3、MISO 和供电。
-- 使能后立即读取可能得到无效数据。等待约 45 ms，并使用 `icm_data_ready()` 判断是否有新数据。
-- 温度寄存器使用 `132.48` 的灵敏度。`2.07` 只适用于 FIFO 中的 8 位温度字段。
+- `WHO_AM_I` should read `0x47`. If it does not, check CS, SPI mode 0 or 3, MISO and the supply.
+- Reading immediately after enabling can return invalid data. Wait about 45 ms and use `icm_data_ready()` to tell whether new data is available.
+- The temperature register uses a sensitivity of `132.48`. The `2.07` figure only applies to the 8-bit temperature field in the FIFO.
 
-## 许可
+## License
 
 MIT
