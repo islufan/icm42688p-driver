@@ -1,0 +1,123 @@
+name: Bug report
+description: Report a problem with the ICM-42688-P driver
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in as much as you can — the details below usually decide
+        whether this is a wiring problem, a bus problem or a driver problem.
+
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Sensor
+      description: Which part are you using?
+      options:
+        - ICM-42688-P
+        - ICM-42688-V
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: mcu
+    attributes:
+      label: MCU / board
+      placeholder: STM32G474CEU6, custom board
+    validations:
+      required: true
+
+  - type: dropdown
+    id: toolchain
+    attributes:
+      label: Toolchain
+      options:
+        - Keil MDK, AC6 (armclang)
+        - Keil MDK, AC5 (armcc)
+        - GCC (arm-none-eabi)
+        - GCC (Linux / host)
+        - MSVC
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Driver version
+      description: Release tag or commit hash
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bus
+    attributes:
+      label: Bus
+      options:
+        - SPI
+        - I2C
+    validations:
+      required: true
+
+  - type: input
+    id: bus_config
+    attributes:
+      label: Bus settings
+      description: SPI mode and clock, or I2C address and speed
+      placeholder: SPI mode 3, 10 MHz / I2C 0x68, 400 kHz
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: What happens?
+      options:
+        - WHO_AM_I does not read 0x47
+        - Data reads as zero or constant
+        - Data looks scaled or rotated incorrectly
+        - Build or link error
+        - Unit test failure
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Call icm_init() ...
+        2. Then icm_read_scaled() ...
+        3. Observed ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      placeholder: |
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Already checked
+      options:
+        - label: CS is driven low for the whole transfer
+        - label: SPI mode 0 or 3 is used
+        - label: The supply and VDDIO are within the datasheet range
+        - label: The bus is shared with no other device during the transfer
+        - label: I reproduced the problem with the current main branch
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Logs, scope captures or code
+      description: Paste register dumps, logic analyser captures or a minimal reproducer
+      render: shell
